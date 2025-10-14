@@ -86,7 +86,7 @@ def scoring_function(dataset_name, **params):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='optimize_baseline_node.py')
     parser.add_argument('--dataset',  default='BaCommunity', type=str, help='Dataset to use')
-    parser.add_argument('--n_jobs',  default=20, type=int, help='Number of jobs')
+    parser.add_argument('--n_jobs',  default=30, type=int, help='Number of jobs')
     args = parser.parse_args()
     dataset_name = args.dataset
     n_jobs = args.n_jobs
