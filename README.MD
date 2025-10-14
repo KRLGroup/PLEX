@@ -16,5 +16,3 @@ Node attributions can be done with the file `InstanceLevelExpl.ipynb`
 
 ## Global Explanation and Layer-wise Rules:
 Global Explanation and Layer-wise Rules are obtainable on the `GlobalExplanationsGraph` and `GlobalExplanationsNode` files
-
-#Prova
