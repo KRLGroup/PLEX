@@ -1,1 +1,0 @@
-{"nogumbel": false, "epochs": 3000, "lr": 0.01, "l2": 0.0001, "dropout": 0, "num_layers": 3, "hidden_dim": 32, "batch_size": 128, "edge_once": true, "layer_double": true}
