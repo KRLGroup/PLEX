@@ -1,9 +1,6 @@
 import torch
-from torch_geometric.nn import global_mean_pool, global_max_pool, global_add_pool
 from tell import LogicalLayer, Phi
-
-import torch
-
+from torch_geometric.nn import MessagePassing
 
 
 def gumbel_sigmoid(logits, tau = 1, hard = False, threshold = 0.5, deterministic=False):
@@ -68,8 +65,6 @@ class GumbelSigmoidLayer(torch.nn.Module):
         self.hard = hard
         self.deterministic = deterministic
 
-from torch_geometric.nn import MessagePassing
-
 class CustomGraphConv(MessagePassing):
     def __init__(self, nn_0, nn_1, negative_concatenate=False, **kwargs):
         super().__init__(aggr='add', **kwargs)
@@ -103,14 +98,14 @@ class CustomGraphConv(MessagePassing):
         return aggr_out
 
 class GIN(torch.nn.Module):
-    def __init__(self, num_features, num_features_edge, num_classes, num_layers=3, hidden_dim=64, dropout=0.15, nogumbel=False, edge_once=False, layer_double = False):
+    def __init__(self, num_features, num_features_edge, num_layers=3, hidden_dim=64, dropout=0.15, nogumbel=False, edge_once = False, layer_double = False):
         super(GIN, self).__init__()
-        self.num_features, self.num_features_edge, self.num_classes = num_features, num_features_edge, num_classes
+        self.num_features, self.num_features_edge= num_features, num_features_edge
         self.convs = torch.nn.ModuleList()
         self.edge_once = edge_once
         self.layer_double = layer_double
-        for i in range(num_layers):
 
+        for i in range(num_layers):
             in_dim = None
             if i == 0:
                 in_dim = 2 * num_features + num_features_edge
@@ -145,18 +140,19 @@ class GIN(torch.nn.Module):
                         GumbelSigmoidLayer() if not nogumbel else torch.nn.ReLU()
                     )
                 )
+
             self.convs.append(conv)
-        self.fc1 = torch.nn.Linear(num_layers*3*hidden_dim, hidden_dim)
-        self.fc2 = torch.nn.Linear(hidden_dim, num_classes)
+            
+        self.fc1 = torch.nn.Linear(num_layers*hidden_dim, hidden_dim)
+        self.fc2 = torch.nn.Linear(hidden_dim, 1)
         self.dropout = torch.nn.Dropout(dropout)
         self.nogumbel=nogumbel
-
-    def forward(self, x, edge_index, edge_attr, batch=None, tau=1, deterministic=False, *args, **kwargs):
-        if batch is None:
-            batch = torch.zeros(x.shape[0]).long().to(x.device)
+    
+    def forward(self, x, edge_index, edge_attr=None, edge_label_index=None, tau=1, deterministic=False):
+        #Encode
         xs = []
         for i, conv in enumerate(self.convs):
-
+            
             if self.layer_double == False and not self.nogumbel:
                 conv.nn_0[1].set(tau, hard=True, deterministic=deterministic)
                 conv.nn_1[1].set(tau, hard=True, deterministic=deterministic)
@@ -173,25 +169,23 @@ class GIN(torch.nn.Module):
 
             xs.append(x)
             x = self.dropout(x)
-
-        x_mean = global_mean_pool(torch.hstack(xs), batch)
-        x_max = global_max_pool(torch.hstack(xs), batch)
-        x_sum = global_add_pool(torch.hstack(xs), batch)
-        x = torch.hstack([x_mean, x_max, x_sum])
-        x = self.dropout(x)
+        x = torch.hstack(xs)
+        #Decode
+        src_emb = x[edge_label_index[0]]  # [num_edges, embedding_dim]
+        dst_emb = x[edge_label_index[1]]  # [num_edges, embedding_dim]
+        x = src_emb * dst_emb
         x = self.fc1(x)
         x = torch.nn.functional.relu(x)
         x = torch.sigmoid(self.fc2(x))
         return x
-
-    def forward_e(self, x, edge_index, edge_attr, batch=None, tau=1, deterministic=False, *args, **kwargs):
-        if batch is None:
-            batch = torch.zeros(x.shape[0]).long().to(x.device)
+    
+    def forward_e(self, x, edge_index, edge_attr=None, edge_label_index=None, tau=1, deterministic=False):
         ret_x = []
-        ret_y_interm = []
         ret_y = []
+        ret_y_interm = []
         xs = []
         for i, conv in enumerate(self.convs):
+            ret_x.append(x)
 
             if self.layer_double == False and not self.nogumbel:
                 conv.nn_0[1].set(tau, hard=True, deterministic=deterministic)
@@ -199,8 +193,6 @@ class GIN(torch.nn.Module):
             elif self.layer_double == True and not self.nogumbel:
                 conv.nn_0[3].set(tau, hard=True, deterministic=deterministic)
                 conv.nn_1[3].set(tau, hard=True, deterministic=deterministic)
-
-            ret_x.append(x)
 
             if i == 0 and edge_attr is not None:
                 x, x_interm = conv(x, edge_index, edge_attr)
@@ -212,30 +204,30 @@ class GIN(torch.nn.Module):
             xs.append(x)
             ret_y.append(x)
             ret_y_interm.append(x_interm)
+            #x = self.dropout(x)
 
-
-        x_mean = global_mean_pool(torch.hstack(xs), batch)
-        x_max = global_max_pool(torch.hstack(xs), batch)
-        x_sum = global_add_pool(torch.hstack(xs), batch)
-        x = torch.hstack([x_mean, x_max, x_sum])
- 
+        x = torch.hstack(xs)
+        #Decode
+        src_emb = x[edge_label_index[0]]  # [num_edges, embedding_dim]
+        dst_emb = x[edge_label_index[1]]  # [num_edges, embedding_dim]
+        x = src_emb * dst_emb
         ret_x.append(x)
         x = self.fc1(x)
         x = torch.nn.functional.relu(x)
-        x = torch.sigmoid(self.fc2(x))        
+        x = torch.sigmoid(self.fc2(x))
         ret_y.append(x)
         return ret_x, ret_y, ret_y_interm
-
-
+    
 
 class GINTELL(torch.nn.Module):
-    def __init__(self, num_features, num_features_edge, num_classes, num_layers=3, hidden_dim=64, edge_again=False, negative_concatenate=False, input_binary=True, edge_binary=True):
+    def __init__(self, num_features, num_features_edge, num_layers=3, hidden_dim=64, edge_again=False, negative_concatenate=False, input_binary=True, edge_binary=True):
         super(GINTELL, self).__init__()
-        self.num_features, self.num_features_edge, self.num_classes = num_features, num_features_edge, num_classes
+        self.num_features, self.num_features_edge = num_features, num_features_edge
         self.convs = torch.nn.ModuleList()
         self.edge_again = edge_again
         self.negative_concatenate = negative_concatenate
-        print("edge_again", edge_again, "negative_concatenate", negative_concatenate)
+        print("edge again:", edge_again, "negative concatenate:", negative_concatenate)
+        
         if not edge_again and negative_concatenate==2:
             for i in range(num_layers):
                 conv = CustomGraphConv(
@@ -244,7 +236,7 @@ class GINTELL(torch.nn.Module):
                     negative_concatenate=negative_concatenate
                 )   
                 self.convs.append(conv)
-            self.fc = LogicalLayer(2*num_layers*3*hidden_dim, num_classes, use_phi=True)
+            self.fc = LogicalLayer(2*num_layers*hidden_dim, 1, use_phi=False)
         elif edge_again and negative_concatenate==0:
             for i in range(num_layers):
                 conv = CustomGraphConv(
@@ -253,7 +245,7 @@ class GINTELL(torch.nn.Module):
                     negative_concatenate=negative_concatenate
                 )   
                 self.convs.append(conv)
-            self.fc = LogicalLayer(num_layers*3*hidden_dim, num_classes, use_phi=True)
+            self.fc = LogicalLayer(num_layers*hidden_dim, 1, use_phi=False)
         elif edge_again and negative_concatenate==2:
             for i in range(num_layers):
                 conv = CustomGraphConv(
@@ -262,7 +254,7 @@ class GINTELL(torch.nn.Module):
                     negative_concatenate=negative_concatenate
                 )   
                 self.convs.append(conv)
-            self.fc = LogicalLayer(2*num_layers*3*hidden_dim, num_classes, use_phi=True)
+            self.fc = LogicalLayer(2*num_layers*hidden_dim, 1, use_phi=False)
         elif not edge_again and negative_concatenate==0:
             for i in range(num_layers):
                 conv = CustomGraphConv(
@@ -271,7 +263,7 @@ class GINTELL(torch.nn.Module):
                     negative_concatenate=negative_concatenate
                 )   
                 self.convs.append(conv)
-            self.fc = LogicalLayer(num_layers*3*hidden_dim, num_classes, use_phi=True)
+            self.fc = LogicalLayer(num_layers*hidden_dim, 1, use_phi=False)
         elif edge_again and negative_concatenate==1:
             for i in range(num_layers):
                 conv = CustomGraphConv(
@@ -280,7 +272,7 @@ class GINTELL(torch.nn.Module):
                     negative_concatenate=negative_concatenate
                 )   
                 self.convs.append(conv)
-            self.fc = LogicalLayer(num_layers*3*hidden_dim, num_classes, use_phi=True)
+            self.fc = LogicalLayer(num_layers*hidden_dim, 1, use_phi=False)
         else:
             for i in range(num_layers):
                 conv = CustomGraphConv(
@@ -289,26 +281,27 @@ class GINTELL(torch.nn.Module):
                     negative_concatenate=negative_concatenate
                 )   
                 self.convs.append(conv)
-            self.fc = LogicalLayer(num_layers*3*hidden_dim, num_classes, use_phi=True)
-
+            self.fc = LogicalLayer(num_layers*hidden_dim, 1, use_phi=False)
+    
         self.input_binary = input_binary
         self.edge_binary = edge_binary
         print("input_binary", input_binary, "edge_binary", edge_binary)
         self.phi_node = Phi(num_features) if not input_binary else None
         self.phi_edge = Phi(num_features_edge) if not edge_binary else None
 
-
-    def forward(self, x, edge_index, edge_attr, batch, discrete=False, *args, **kwargs):
+    def forward(self, x, edge_index, edge_attr=None, edge_label_index = None, discrete=False, *args, **kwargs):
+        #Encode
         xs = []
+
         if edge_attr is not None and self.phi_edge is not None:
             edge_attr = self.phi_edge(edge_attr)
         if edge_attr is not None and self.negative_concatenate!=0:
             edge_attr = torch.hstack([edge_attr, 1-edge_attr])
+
         for i, conv in enumerate(self.convs):
-            
+
             if i == 0 and not self.input_binary:
                 x = self.phi_node(x)
-
 
             if self.negative_concatenate == 2 or (self.negative_concatenate==1 and i==0):
                 x = torch.hstack([x, 1-x])
@@ -325,31 +318,43 @@ class GINTELL(torch.nn.Module):
                 x_hard = torch.zeros_like(x, memory_format=torch.legacy_contiguous_format)
                 x_hard[indices[0], indices[1]] = 1.0
                 x = x_hard - x.detach() + x
-            xs.append(x)
 
-        x_mean = global_mean_pool(torch.hstack(xs), batch)
-        x_max = global_max_pool(torch.hstack(xs), batch)
-        x_sum = global_add_pool(torch.hstack(xs), batch)
-        x = torch.hstack([x_mean, x_max, x_sum])
+            xs.append(x)
+            
+
+        x = torch.hstack(xs)
+        if discrete:
+            indices = (x > 0.5).nonzero(as_tuple=True)
+            x_hard = torch.zeros_like(x, memory_format=torch.legacy_contiguous_format)
+            x_hard[indices[0], indices[1]] = 1.0
+            x = x_hard - x.detach() + x
+        
+        #Decode
+        src_emb = x[edge_label_index[0]]  # [num_edges, embedding_dim]
+        dst_emb = x[edge_label_index[1]]  # [num_edges, embedding_dim]
+        x = src_emb * dst_emb
+
         if self.negative_concatenate==2:
             x = torch.hstack([x, 1-x])
+        
 
+            
         x = self.fc(x)
-
+        
         return x
-    
 
-    def forward_e(self, x, edge_index, batch, discrete=False, *args, **kwargs):
+    def forward_e(self, x, edge_index, edge_attr=None, edge_label_index=None, discrete=False, *args, **kwargs):
 
         ret_x = []
         ret_y = []
         ret_y_interm = []
         xs = []
+
         if edge_attr is not None and self.phi_edge is not None:
             edge_attr = self.phi_edge(edge_attr)
         if edge_attr is not None and self.negative_concatenate!=0:
             edge_attr = torch.hstack([edge_attr, 1-edge_attr])
-
+        
         for i, conv in enumerate(self.convs):
             ret_x.append(x)
 
@@ -374,15 +379,23 @@ class GINTELL(torch.nn.Module):
             ret_y.append(x)
             ret_y_interm.append(x_interm)
 
-        x_mean = global_mean_pool(torch.hstack(xs), batch)
-        x_max = global_max_pool(torch.hstack(xs), batch)
-        x_sum = global_add_pool(torch.hstack(xs), batch)
-        x = torch.hstack([x_mean, x_max, x_sum])
+        x = torch.hstack(xs)
+
+        if discrete:
+            indices = (x > 0.5).nonzero(as_tuple=True)
+            x_hard = torch.zeros_like(x, memory_format=torch.legacy_contiguous_format)
+            x_hard[indices[0], indices[1]] = 1.0
+            x = x_hard - x.detach() + x
+        
+        src_emb = x[edge_label_index[0]]  # [num_edges, embedding_dim]
+        dst_emb = x[edge_label_index[1]]  # [num_edges, embedding_dim]
+        x = src_emb * dst_emb
         if self.negative_concatenate==2:
             x = torch.hstack([x, 1-x])
-
         ret_x.append(x)
-        x = self.fc(x, discrete_output=False)
 
+        x = self.fc(x)
         ret_y.append(x)
+
         return ret_x, ret_y, ret_y_interm
+

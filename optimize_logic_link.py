@@ -1,4 +1,4 @@
-from train_baseline_node import train
+from train_logic_link import train_eval, get_best_baseline_path
 # from skopt import gp_minimize
 # from skopt.space import Real, Integer, Categorical
 # from skopt.utils import use_named_args
@@ -19,22 +19,32 @@ class CustomGridSearch:
         self.results_ = []
 
     def fit(self, dataset_name):
-        # Generate all possible combinations of parameters
-        param_combinations = list(itertools.product(*(self.param_grid[param] for param in self.param_grid)))
-        random.shuffle(param_combinations)
-        print('Total combinations:', len(param_combinations))
+        # Genera tutte le combinazioni
+        all_combinations = list(itertools.product(*(self.param_grid[param] for param in self.param_grid)))
+        random.shuffle(all_combinations)
         
-        # Wrapper function to evaluate a single combination of parameters
+        # Filtra combinazioni non valide
+        valid_combinations = []
+        for params in all_combinations:
+            param_dict = {param: params[i] for i, param in enumerate(self.param_grid)}
+            # Regola: warmup_epochs = 0 solo se only_teacher = 0
+            if param_dict['warmup_epochs'] == 0 and param_dict['only_teacher'] != 0:
+                continue
+            valid_combinations.append(params)
+
+        print(f"Total combinations: {len(valid_combinations)} (filtered from {len(all_combinations)})")
+        
         def evaluate_params(params):
             param_dict = {param: params[i] for i, param in enumerate(self.param_grid)}
-            print(param_dict)
             score = self.scoring_function(dataset_name, **param_dict)
             return param_dict, score
 
-        # Parallel processing of parameter combinations
-        results = Parallel(n_jobs=self.n_jobs)(delayed(evaluate_params)(params) for params in param_combinations)
-        
-        # Process results to find the best parameters and score
+        # Parallelizza l’esecuzione
+        results = Parallel(n_jobs=self.n_jobs)(
+            delayed(evaluate_params)(params) for params in valid_combinations
+        )
+
+        # Trova i migliori parametri
         for param_dict, score in results:
             self.results_.append({'params': param_dict, 'score': score})
             if self.best_score_ is None or score > self.best_score_:
@@ -43,48 +53,34 @@ class CustomGridSearch:
         
         return self
 
+
     def get_results(self):
         return self.results_
 
 
-
-# Define the search space for hyperparameters
-# params  = {
-#     'nogumbel': [False, True],
-#     'epochs': [1000],
-#     'lr': [0.001, 0.01, 0.1],
-#     'l2': [0, 0.001, 0.01, 0.1],
-#     'dropout': [0, 0.15, 0.3],
-#     'num_layers': [3],
-#     'hidden_dim': [16,32,64,128],
-#     'batch_size': [16,32,64],
-# }
-
 params  = {
-    #'nogumbel': [False, True],
-    'nogumbel': [False],
-    'epochs': [3000],
+    'epochs': [6000],
+    'warmup_epochs': [0, 3000],
     'lr': [0.001, 0.01],
-    'l2': [1e-4],
-    'dropout': [0,0.5],
-    'num_layers': [3,5],
-    'hidden_dim': [16,32],
-    'batch_size': [128],
-    'edge_once': [False],
-    'layer_double': [False, True],
+    'l2': [0.0, 0.1],
+    'conv_reg': [0.001],
+    'fc_reg': [0.1],
+    'negative_concatenate': [0, 1, 2],
+    'edge_again': [False],
+    'only_teacher': [0, 1, 2],
 }
 
 
-
 def scoring_function(dataset_name, **params):
-    score = train(dataset_name, params)['val_acc_mean']
+    baseline_path = get_best_baseline_path(dataset_name)
+    score = train_eval(dataset_name, baseline_path, params)['val_auc_mean']
     return score
 
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description='optimize_baseline_node.py')
-    parser.add_argument('--dataset',  default='BaCommunity', type=str, help='Dataset to use')
-    parser.add_argument('--n_jobs',  default=30, type=int, help='Number of jobs')
+    parser = argparse.ArgumentParser(description='optimize_logic_node.py')
+    parser.add_argument('--dataset',  default='Cora', type=str, help='Dataset to use')
+    parser.add_argument('--n_jobs',  default=3, type=int, help='Number of jobs')
     args = parser.parse_args()
     dataset_name = args.dataset
     n_jobs = args.n_jobs

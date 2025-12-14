@@ -1,6 +1,4 @@
 from train_baseline import train
-
-import numpy as np
 # from skopt import gp_minimize
 # from skopt.space import Real, Integer, Categorical
 # from skopt.utils import use_named_args

@@ -1,2 +1,5 @@
 data/
 __pycache__/
+results/
+results_logic/
+.ipynb_checkpoints/

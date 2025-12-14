@@ -1,6 +1,4 @@
 from train_logic import train_eval, get_best_baseline_path
-
-import numpy as np
 # from skopt import gp_minimize
 # from skopt.space import Real, Integer, Categorical
 # from skopt.utils import use_named_args
@@ -21,22 +19,32 @@ class CustomGridSearch:
         self.results_ = []
 
     def fit(self, dataset_name):
-        # Generate all possible combinations of parameters
-        param_combinations = list(itertools.product(*(self.param_grid[param] for param in self.param_grid)))
-        random.shuffle(param_combinations)
-        print('Total combinations:', len(param_combinations))
+        # Genera tutte le combinazioni
+        all_combinations = list(itertools.product(*(self.param_grid[param] for param in self.param_grid)))
+        random.shuffle(all_combinations)
         
-        # Wrapper function to evaluate a single combination of parameters
+        # Filtra combinazioni non valide
+        valid_combinations = []
+        for params in all_combinations:
+            param_dict = {param: params[i] for i, param in enumerate(self.param_grid)}
+            # Regola: warmup_epochs = 0 solo se only_teacher = 0
+            if param_dict['warmup_epochs'] == 0 and param_dict['only_teacher'] != 0:
+                continue
+            valid_combinations.append(params)
+
+        print(f"Total combinations: {len(valid_combinations)} (filtered from {len(all_combinations)})")
+        
         def evaluate_params(params):
             param_dict = {param: params[i] for i, param in enumerate(self.param_grid)}
-            print(param_dict)
             score = self.scoring_function(dataset_name, **param_dict)
             return param_dict, score
 
-        # Parallel processing of parameter combinations
-        results = Parallel(n_jobs=self.n_jobs)(delayed(evaluate_params)(params) for params in param_combinations)
-        
-        # Process results to find the best parameters and score
+        # Parallelizza l’esecuzione
+        results = Parallel(n_jobs=self.n_jobs)(
+            delayed(evaluate_params)(params) for params in valid_combinations
+        )
+
+        # Trova i migliori parametri
         for param_dict, score in results:
             self.results_.append({'params': param_dict, 'score': score})
             if self.best_score_ is None or score > self.best_score_:
@@ -44,6 +52,7 @@ class CustomGridSearch:
                 self.best_params_ = param_dict
         
         return self
+
 
     def get_results(self):
         return self.results_
@@ -64,15 +73,14 @@ class CustomGridSearch:
 
 params  = {
     'epochs': [5000],
-    'warmup_epochs': [3000],
-    'batch_size': [16,32,64,128], #metto il migliore
-    'lr': [0.0001, 0.001, 0.01], #li riduco a 2
-    'l2': [0, 1e-4],
-    'conv_reg': [0.1, 0.01, 0.001], #li riduco a 2
-    'fc_reg': [0.1, 0.01, 0.001], #li riduco a 2
-    'dropout': [0, 0.1, 0.3, 0.5], #li riduco a 2
+    'warmup_epochs': [0,3000],
+    'batch_size': [32], 
+    'lr': [0.001, 0.01],
+    'l2': [0.0],
+    'conv_reg': [0.001],
+    'fc_reg': [0.01],
     'negative_concatenate': [0, 1, 2],
-    'edge_again': [False, True],
+    'edge_again': [False],
     'only_teacher': [0, 1, 2],
 }
 
@@ -86,7 +94,7 @@ def scoring_function(dataset_name, **params):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='optimize_baseline.py')
-    parser.add_argument('--dataset',  default='PROTEINS', type=str, help='Dataset to use')
+    parser.add_argument('--dataset',  default='BBBP', type=str, help='Dataset to use')
     parser.add_argument('--n_jobs',  default=10, type=int, help='Number of jobs')
     args = parser.parse_args()
     dataset_name = args.dataset

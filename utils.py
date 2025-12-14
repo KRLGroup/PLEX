@@ -2,24 +2,12 @@ import torch
 import random
 import numpy as np
 import os
-from torch import nn
 import torch
-import torch.nn.functional as F
 from torch_geometric.datasets import TUDataset, Planetoid, OGB_MAG, MoleculeNet
 from ba_multi_shapes import BAMultiShapesDataset
 from syn_dataset import SynGraphDataset
 from spmotif_dataset import *
-import torch_geometric.transforms as T
-from torch_geometric.loader import DataLoader
-from torch_geometric.nn import GINConv, global_mean_pool, global_max_pool, global_add_pool
 from utils import *
-from sklearn.model_selection import train_test_split
-import shutil
-import glob
-import pandas as pd
-import argparse
-import pickle
-import json
 
 def create_folder(dataset_name, args, seed=None):
     args_s = '|'.join([f"{k}={args[k]}" for k in sorted(args.keys())])

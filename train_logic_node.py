@@ -1,14 +1,7 @@
-from torch import nn
 import torch
 import torch.nn.functional as F
-from torch_geometric.datasets import TUDataset
-from syn_dataset import SynGraphDataset
 from spmotif_dataset import *
-import torch_geometric.transforms as T
-from torch_geometric.loader import DataLoader
-from torch_geometric.nn import GINConv, global_mean_pool, global_max_pool, global_add_pool
 from utils import *
-from sklearn.model_selection import train_test_split
 import shutil
 import glob
 import pandas as pd
@@ -17,6 +10,7 @@ import pickle
 import json
 from model_node import GIN, GINTELL
 from torch.optim.lr_scheduler import ReduceLROnPlateau
+from torch_geometric.loader import NeighborLoader
 
 SEEDS = 5
 
@@ -39,7 +33,16 @@ def train_epoch(model, model_tell, data, mask, device, optimizer, num_classes, t
 
     total_loss = [0]*(len(model_tell.convs)+1)
     total_correct = [0]*(len(model_tell.convs)+1)
-    
+
+
+    if train_full:
+        if model_tell.phi_node is not None:
+            model_tell.phi_node.tau = 10
+        if model_tell.phi_edge is not None:
+            model_tell.phi_edge.tau = 10
+        for layer in model_tell.convs:
+            layer.nn_1.phi_in.tau = 10
+
     y = data.y.to(device)
     
     optimizer.zero_grad()
@@ -52,15 +55,6 @@ def train_epoch(model, model_tell, data, mask, device, optimizer, num_classes, t
     loss = 0
     last_layer_out = None
 
-    if train_full:
-        if model_tell.phi_node is not None:
-            model_tell.phi_node.tau = 10
-        if model_tell.phi_edge is not None:
-            model_tell.phi_edge.tau = 10
-        
-        for layer in model_tell.convs:
-            layer.nn_1.phi_in.tau = 10
-    
     if train_full == False or (train_full == True and  (only_teacher == 1 or only_teacher == 2)):
 
         if data.edge_attr is not None and model_tell.negative_concatenate!=0:
@@ -133,7 +127,7 @@ def train_epoch(model, model_tell, data, mask, device, optimizer, num_classes, t
         out = model_tell.fc(layer_x)
         pred = out.argmax(-1)
 
-        if only_teacher == 2:
+        if only_teacher == 2 or only_teacher == 0:
             layer_y = layers_y[-1]
             layer_y = (layer_y > 0.5).float()
             layer_y_true = layer_y.argmax(-1)
@@ -182,7 +176,6 @@ def test_epoch(model, data, mask, device):
     
     return val_acc
 
-from torch_geometric.loader import NeighborLoader
 def train_seed(dataset_name, baseline_path, args, seed, device):
     set_seed(seed)
 
@@ -229,21 +222,25 @@ def train_seed(dataset_name, baseline_path, args, seed, device):
     for p in model.parameters():
         p.requires_grad_ = False
     print('Baseline Acc:', test_epoch(model, dataset.data, dataset.data.test_mask, device))
+
+    print('Num train nodes:', dataset.data.train_mask.sum().item()
+          , 'Num val nodes:', dataset.data.val_mask.sum().item()
+          , 'Num test nodes:', dataset.data.test_mask.sum().item())
     
     if dataset_name in ['BaCommunity']:
         print('Using input_binary=False for this dataset')
         model_tell = GINTELL(num_features=num_features, num_features_edge=num_features_edge, num_classes=num_classes, hidden_dim=baseline_args['hidden_dim'], num_layers=baseline_args['num_layers'],
-                              dropout=args['dropout'], negative_concatenate=args['negative_concatenate'], 
+                              negative_concatenate=args['negative_concatenate'], 
                               edge_again=args['edge_again'], input_binary=False).to(device)
     elif dataset_name in ['No one at the moment']:
         print('Using input_binary=False and edge_binary=False for this dataset')
         model_tell = GINTELL(num_features=num_features, num_features_edge=num_features_edge, num_classes=num_classes, hidden_dim=baseline_args['hidden_dim'], num_layers=baseline_args['num_layers'],
-                              dropout=args['dropout'], negative_concatenate=args['negative_concatenate'],
+                              negative_concatenate=args['negative_concatenate'],
                               edge_again=args['edge_again'], input_binary=False, edge_binary=False).to(device)
     else:
         print('Using input_binary=True for this dataset')
         model_tell = GINTELL(num_features=num_features, num_features_edge=num_features_edge, num_classes=num_classes, hidden_dim=baseline_args['hidden_dim'], num_layers=baseline_args['num_layers'],
-                              dropout=args['dropout'], negative_concatenate=args['negative_concatenate'],
+                              negative_concatenate=args['negative_concatenate'],
                               edge_again=args['edge_again']).to(device)
     
     optimizer = torch.optim.AdamW(model_tell.parameters(), lr=args['lr'], weight_decay=args['l2'])
@@ -339,17 +336,17 @@ def eval_seed(dataset_name, baseline_path, args, seed, device):
     if dataset_name in ['BaCommunity']:
         print('Using input_binary=False for this dataset')
         model_tell = GINTELL(num_features=num_features, num_features_edge=num_features_edge, num_classes=num_classes, hidden_dim=baseline_args['hidden_dim'], num_layers=baseline_args['num_layers'],
-                              dropout=args['dropout'], negative_concatenate=args['negative_concatenate'], 
+                              negative_concatenate=args['negative_concatenate'], 
                               edge_again=args['edge_again'], input_binary=False).to(device)
     elif dataset_name in ['No one at the moment']:
         print('Using input_binary=False and edge_binary=False for this dataset')
         model_tell = GINTELL(num_features=num_features, num_features_edge=num_features_edge, num_classes=num_classes, hidden_dim=baseline_args['hidden_dim'], num_layers=baseline_args['num_layers'],
-                              dropout=args['dropout'], negative_concatenate=args['negative_concatenate'],
+                              negative_concatenate=args['negative_concatenate'],
                               edge_again=args['edge_again'], input_binary=False, edge_binary=False).to(device)
     else:
         print('Using input_binary=True for this dataset')
         model_tell = GINTELL(num_features=num_features, num_features_edge=num_features_edge, num_classes=num_classes, hidden_dim=baseline_args['hidden_dim'], num_layers=baseline_args['num_layers'],
-                              dropout=args['dropout'], negative_concatenate=args['negative_concatenate'],
+                              negative_concatenate=args['negative_concatenate'],
                               edge_again=args['edge_again']).to(device)
     model_tell = torch.load(os.path.join(path, 'best.pt'))
     # model_tell.load_state_dict(torch.load('best.pt'))
@@ -388,7 +385,7 @@ def train_eval(dataset_name, baseline_path, args):
 
     if only_eval or seed_todo is not None:
         results = []
-        for seed in range(10):
+        for seed in range(SEEDS):
             try:
                 r = eval_seed(dataset_name, os.path.join(baseline_path, str(seed)), args, seed, device)
                 results.append(r)
@@ -415,7 +412,7 @@ if __name__ == '__main__':
 
     parser = argparse.ArgumentParser(description='train_baseline.py')
 
-    parser.add_argument('--dataset',       default='BaCommunity', type=str,     help='Dataset to use')
+    parser.add_argument('--dataset',       default='BaShapes', type=str,     help='Dataset to use')
     parser.add_argument('--baseline_path', default=None,       type=str,     help='Baseline path')
     parser.add_argument('--epochs',        default=5000,       type=int,     help='Epochs')
     parser.add_argument('--warmup_epochs', default=3000,       type=int,     help='Epochs')
@@ -423,8 +420,7 @@ if __name__ == '__main__':
     parser.add_argument('--lr',            default=0.01,      type=float,   help='Learning Rate')
     parser.add_argument('--l2',            default=0.0001,      type=float,     help='Weight decay')
     parser.add_argument('--conv_reg',      default=0.001,      type=float,   help='Conv layer regularization')
-    parser.add_argument('--fc_reg',        default=0.1,      type=float,    help='Last layer regularization')
-    parser.add_argument('--dropout',       default=0.0,        type=float,   help='Dropout')
+    parser.add_argument('--fc_reg',        default=0.01,      type=float,    help='Last layer regularization')
     parser.add_argument('--negative_concatenate', default=2,   type=int,    help='0: no neg, 1: first layer neg, 2: all layers neg')
     parser.add_argument('--edge_again',    action='store_true',              help='Use edge features at every layer')
     parser.add_argument('--only_teacher',    default=0, type=int,              help='Only train using the teacher model')

@@ -1,12 +1,5 @@
-from torch import nn
 import torch
-import torch.nn.functional as F
-from torch_geometric.datasets import TUDataset
-import torch_geometric.transforms as T
-from torch_geometric.loader import DataLoader
-from torch_geometric.nn import GINConv
 from tell import LogicalLayer, Phi
-from torch import Tensor
 
 
 def gumbel_sigmoid(logits, tau = 1, hard = False, threshold = 0.5, deterministic=False):
@@ -223,7 +216,7 @@ class GIN(torch.nn.Module):
 
 
 class GINTELL(torch.nn.Module):
-    def __init__(self, num_features, num_features_edge, num_classes, num_layers=3, hidden_dim=64, dropout=0.1, edge_again=False, negative_concatenate=False, input_binary=True, edge_binary=True ):
+    def __init__(self, num_features, num_features_edge, num_classes, num_layers=3, hidden_dim=64, edge_again=False, negative_concatenate=False, input_binary=True, edge_binary=True ):
         super(GINTELL, self).__init__()
         self.num_features, self.num_features_edge, self.num_classes = num_features, num_features_edge, num_classes
         self.convs = torch.nn.ModuleList()
@@ -286,7 +279,6 @@ class GINTELL(torch.nn.Module):
                 self.convs.append(conv)
             self.fc = LogicalLayer(num_layers*hidden_dim, num_classes, use_phi=False)
     
-        self.dropout = torch.nn.Dropout(dropout)
         self.input_binary = input_binary
         self.edge_binary = edge_binary
         print("input_binary", input_binary, "edge_binary", edge_binary)
@@ -322,7 +314,6 @@ class GINTELL(torch.nn.Module):
                 x_hard[indices[0], indices[1]] = 1.0
                 x = x_hard - x.detach() + x
             xs.append(x)
-            x = self.dropout(x)
 
         x = torch.hstack(xs)
         if discrete:
@@ -338,7 +329,7 @@ class GINTELL(torch.nn.Module):
         
         return x
 
-    def forward_e(self, x, edge_index, discrete=False, *args, **kwargs):
+    def forward_e(self, x, edge_index, edge_attr=None, discrete=False, *args, **kwargs):
 
         ret_x = []
         ret_y = []

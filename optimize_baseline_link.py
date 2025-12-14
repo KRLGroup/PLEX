@@ -1,4 +1,4 @@
-from train_baseline_node import train
+from train_baseline_link import train
 # from skopt import gp_minimize
 # from skopt.space import Real, Integer, Categorical
 # from skopt.utils import use_named_args
@@ -48,28 +48,15 @@ class CustomGridSearch:
 
 
 
-# Define the search space for hyperparameters
-# params  = {
-#     'nogumbel': [False, True],
-#     'epochs': [1000],
-#     'lr': [0.001, 0.01, 0.1],
-#     'l2': [0, 0.001, 0.01, 0.1],
-#     'dropout': [0, 0.15, 0.3],
-#     'num_layers': [3],
-#     'hidden_dim': [16,32,64,128],
-#     'batch_size': [16,32,64],
-# }
-
 params  = {
     #'nogumbel': [False, True],
     'nogumbel': [False],
     'epochs': [3000],
     'lr': [0.001, 0.01],
-    'l2': [1e-4],
+    'l2': [0.1, 0.001],
     'dropout': [0,0.5],
     'num_layers': [3,5],
-    'hidden_dim': [16,32],
-    'batch_size': [128],
+    'hidden_dim': [32],
     'edge_once': [False],
     'layer_double': [False, True],
 }
@@ -82,9 +69,9 @@ def scoring_function(dataset_name, **params):
 
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description='optimize_baseline_node.py')
-    parser.add_argument('--dataset',  default='BaCommunity', type=str, help='Dataset to use')
-    parser.add_argument('--n_jobs',  default=30, type=int, help='Number of jobs')
+    parser = argparse.ArgumentParser(description='optimize_baseline_link.py')
+    parser.add_argument('--dataset',  default='Cora', type=str, help='Dataset to use')
+    parser.add_argument('--n_jobs',  default=10, type=int, help='Number of jobs')
     args = parser.parse_args()
     dataset_name = args.dataset
     n_jobs = args.n_jobs

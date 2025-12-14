@@ -1,6 +1,6 @@
 from torch import nn
 import torch
-import torch.nn.functional as F
+
 def logit(x, tau=10):
     x = x
     return torch.log((x / (1 - x + 1e-8))+1e-8)/tau
@@ -16,11 +16,6 @@ def hard_sigmoid(logits, threshold=0.5):
     y_hard[indices[0], indices[1]] = 1.0
     ret = y_hard - y_soft.detach() + y_soft
     return ret
-
-
-from torch import Tensor
-
-
 
 
 def step(x, tau=0):
