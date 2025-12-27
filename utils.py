@@ -88,7 +88,7 @@ def zero_nan_gradients(model, epoch=None, batch_idx=None):
             # --- Controllo NaN nei gradienti ---
             nan_mask = param.grad != param.grad  # True dove ci sono NaN
             if nan_mask.any():
-                print(f"⚠️ NaN trovato nei gradienti di: {name}, numero di NaN: {nan_mask.sum().item()}")
+                #print(f"⚠️ NaN trovato nei gradienti di: {name}, numero di NaN: {nan_mask.sum().item()}")
                 # grad_mean = param.grad.mean().item()
                 # grad_min = param.grad.min().item()
                 # grad_max = param.grad.max().item()
