@@ -14,8 +14,9 @@ from model_link import GIN
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 from torch_geometric.loader import LinkNeighborLoader
 from sklearn.metrics import roc_auc_score
+import time
 
-SEEDS = 1
+SEEDS = 5
 
 def train_epoch(model, loader, device, optimizer):
     model.train()
@@ -275,7 +276,10 @@ def train_eval(dataset_name,  args):
     results = []
     if not only_eval:
         for seed in seeds:
-            results.append(train_seed(dataset_name, args, seed, device))
+            start_time = time.time()
+            result = train_seed(dataset_name, args, seed, device)
+            result['training_time'] = (time.time() - start_time) / 60
+            results.append(result)
 
     print(results)
 
@@ -283,6 +287,7 @@ def train_eval(dataset_name,  args):
         results = []
         for seed in range(SEEDS):
             try:
+                
                 r = eval_seed(dataset_name, args, seed, device)
                 results.append(r)
                 print(r)
@@ -295,7 +300,9 @@ def train_eval(dataset_name,  args):
         'val_auc_mean': df['val_auc'].mean(),
         'test_auc_mean': df['test_auc'].mean(),
         'val_auc_std': df['val_auc'].std(),
-        'test_auc_std': df['test_auc'].std()
+        'test_auc_std': df['test_auc'].std(),
+        'training_time_mean_minutes': df['training_time'].mean(),
+        'training_time_std_minutes': df['training_time'].std(),
     }
 
     with open(os.path.join(path, 'results.json'), 'w') as f:

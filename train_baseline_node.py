@@ -11,9 +11,10 @@ import json
 from model_node import GIN
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 from torch_geometric.loader import NeighborLoader
+import time
 
 
-SEEDS = 10
+SEEDS = 5
 
 def train_epoch(model, data, mask, device, optimizer, num_classes):
     model.train()
@@ -223,7 +224,10 @@ def train_eval(dataset_name, args):
     results = []
     if not only_eval:
         for seed in seeds:
-            results.append(train_seed(dataset_name, args, seed, device))
+            start_time = time.time()
+            result =train_seed(dataset_name, args, seed, device)
+            result['training_time'] = (time.time() - start_time) / 60
+            results.append(result)
 
     print(results)
 
@@ -241,7 +245,7 @@ def train_eval(dataset_name, args):
         'val_acc_mean': df['val_acc'].mean(),
         'test_acc_mean': df['test_acc'].mean(),
         'val_acc_std': df['val_acc'].std(),
-        'test_acc_std': df['test_acc'].std()
+        'test_acc_std': df['test_acc'].std(),
     }
 
     with open(os.path.join(path, 'results.json'), 'w') as f:
