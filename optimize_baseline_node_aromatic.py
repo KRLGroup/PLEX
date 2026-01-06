@@ -1,4 +1,4 @@
-from train_baseline import train
+from train_baseline_node_aromatic import train
 # from skopt import gp_minimize
 # from skopt.space import Real, Integer, Categorical
 # from skopt.utils import use_named_args
@@ -51,7 +51,7 @@ class CustomGridSearch:
 # Define the search space for hyperparameters
 # params  = {
 #     'nogumbel': [False, True],
-#     'epochs': [3000],
+#     'epochs': [1000],
 #     'lr': [0.001, 0.01, 0.1],
 #     'l2': [0, 0.001, 0.01, 0.1],
 #     'dropout': [0, 0.15, 0.3],
@@ -74,14 +74,15 @@ params  = {
 }
 
 
+
 def scoring_function(dataset_name, **params):
     score = train(dataset_name, params)['val_acc_mean']
     return score
 
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description='optimize_baseline.py')
-    parser.add_argument('--dataset',  default='Aromatic', type=str, help='Dataset to use')
+    parser = argparse.ArgumentParser(description='optimize_baseline_node.py')
+    parser.add_argument('--dataset',  default='AromaticCarbon', type=str, help='Dataset to use')
     parser.add_argument('--n_jobs',  default=10, type=int, help='Number of jobs')
     args = parser.parse_args()
     dataset_name = args.dataset

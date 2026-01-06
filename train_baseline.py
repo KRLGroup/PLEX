@@ -178,8 +178,11 @@ def train(dataset_name, args):
     path = create_folder(dataset_name, args)
 
     results = []
-    for seed in range(10):
-        results.append(train_seed(dataset_name, args, seed, device))
+    for seed in range(5):
+        start_time = time.time()
+        result =train_seed(dataset_name, args, seed, device)
+        result['training_time'] = (time.time() - start_time) / 60
+        results.append(result)
 
     df = pd.DataFrame(results)
     df.to_csv(os.path.join(path, 'total_results.csv'))
@@ -188,7 +191,9 @@ def train(dataset_name, args):
         'val_acc_mean': df['val_acc'].mean(),
         'test_acc_mean': df['test_acc'].mean(),
         'val_acc_std': df['val_acc'].std(),
-        'test_acc_std': df['test_acc'].std()
+        'test_acc_std': df['test_acc'].std(),
+        'training_time_mean': df['training_time'].mean(),
+        'training_time_std': df['training_time'].std()
     }
 
     with open(os.path.join(path, 'results.json'), 'w') as f:
