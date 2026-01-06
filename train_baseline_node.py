@@ -76,10 +76,7 @@ def train_seed(dataset_name, args, seed, device):
         json.dump(args, f)
 
     dataset = get_dataset(dataset_name)
-
-    print(dataset)
-    print(dataset.data)
-
+    
     num_classes = dataset.num_classes
     num_features = dataset.num_features
     num_features_edge = dataset.num_edge_features
@@ -258,7 +255,7 @@ if __name__ == '__main__':
 
     parser = argparse.ArgumentParser(description='train_baseline.py')
 
-    parser.add_argument('--dataset',       default='BaCommunity', type=str,     help='Dataset to use')
+    parser.add_argument('--dataset',       default='AromaticCarbon', type=str,     help='Dataset to use')
     parser.add_argument('--epochs',        default=1000,       type=int,     help='Epochs')
     parser.add_argument('--hidden_dim',    default=32,        type=int,     help='Hid Dim')
     parser.add_argument('--batch_size',    default=32,         type=int,     help='Batch Size')

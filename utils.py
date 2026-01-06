@@ -8,6 +8,8 @@ from ba_multi_shapes import BAMultiShapesDataset
 from syn_dataset import SynGraphDataset
 from spmotif_dataset import *
 from utils import *
+from aromatic import Aromatic
+from aromatic_carbon import AromaticCarbon
 
 def create_folder(dataset_name, args, seed=None):
     args_s = '|'.join([f"{k}={args[k]}" for k in sorted(args.keys())])
@@ -57,6 +59,10 @@ def get_dataset(dataset_name):
         return MoleculeNet(name=dataset_name, root=f'data/{dataset_name}')
     elif dataset_name == 'BaMultiShapes':
         return BAMultiShapesDataset(root=f'data/{dataset_name}')
+    elif dataset_name == 'Aromatic':
+        return Aromatic(root=f'data/aromatic_dataset/aromatic_data.csv')
+    elif dataset_name == 'AromaticCarbon':
+        return AromaticCarbon(root=f'data/aromatic_dataset/aromatic_data.csv')
     return TUDataset(root=f'data/{dataset_name}', name=dataset_name, use_node_attr=True, use_edge_attr=True)
 
 def set_seed(seed):

@@ -11,7 +11,7 @@ import json
 from model import GIN, GINTELL
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 
-SEEDS = 5
+SEEDS = 1
 
 def get_best_baseline_path(dataset_name):
     l = glob.glob(f'results/{dataset_name}/*/results.json')
@@ -431,10 +431,10 @@ if __name__ == '__main__':
 
     parser = argparse.ArgumentParser(description='train_baseline.py')
 
-    parser.add_argument('--dataset',       default='Ba2Motifs', type=str,     help='Dataset to use')
+    parser.add_argument('--dataset',       default='Aromatic', type=str,     help='Dataset to use')
     parser.add_argument('--baseline_path', default=None,       type=str,     help='Baseline path')
-    parser.add_argument('--epochs',        default=5000,       type=int,     help='Epochs')
-    parser.add_argument('--warmup_epochs', default=3000,       type=int,     help='Epochs')
+    parser.add_argument('--epochs',        default=1000,       type=int,     help='Epochs')
+    parser.add_argument('--warmup_epochs', default=600,       type=int,     help='Epochs')
     parser.add_argument('--batch_size',    default=32,         type=int,     help='Batch Size')
     parser.add_argument('--lr',            default=0.001,      type=float,   help='Learning Rate')
     parser.add_argument('--l2',            default=0.0,      type=float,     help='Weight decay')
@@ -442,7 +442,7 @@ if __name__ == '__main__':
     parser.add_argument('--fc_reg',        default=0.01,      type=float,    help='Last layer regularization')
     parser.add_argument('--negative_concatenate', default=2, type=int, help='Use negative concatenation')
     parser.add_argument('--edge_again',   action='store_true',              help='Use edge features again in MLP after aggregation')
-    parser.add_argument('--only_teacher',  default=0, type=int,              help='Use only teacher loss or teacher')
+    parser.add_argument('--only_teacher',  default=2, type=int,              help='Use only teacher loss or teacher')
     parser.add_argument('--only_eval',    action='store_true',              help='Number of Convolutional Layers')
     parser.add_argument('--seed',          default=None,      type=int,    help='Random seed')
 

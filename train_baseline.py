@@ -85,9 +85,6 @@ def train_seed(dataset_name, args, seed, device):
         json.dump(args, f)
 
     dataset = get_dataset(dataset_name)
-
-    print(dataset)
-    print(dataset.data)
     
     num_classes = dataset.num_classes
     num_features = dataset.num_features
@@ -298,9 +295,9 @@ if __name__ == '__main__':
 
     parser = argparse.ArgumentParser(description='train_baseline.py')
 
-    parser.add_argument('--dataset',       default='BBBP', type=str,     help='Dataset to use')
-    parser.add_argument('--epochs',        default=1000,       type=int,     help='Epochs')
-    parser.add_argument('--hidden_dim',    default=64,        type=int,     help='Hid Dim')
+    parser.add_argument('--dataset',       default='Aromatic', type=str,     help='Dataset to use')
+    parser.add_argument('--epochs',        default=100,       type=int,     help='Epochs')
+    parser.add_argument('--hidden_dim',    default=32,        type=int,     help='Hid Dim')
     parser.add_argument('--batch_size',    default=32,         type=int,     help='Batch Size')
     parser.add_argument('--num_layers',    default=5,          type=int,     help='Number of Convolutional Layers')
     parser.add_argument('--dropout',       default=0.0,       type=float,   help='Dropout')
