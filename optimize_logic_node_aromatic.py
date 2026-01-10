@@ -1,4 +1,4 @@
-from train_logic import train_eval, get_best_baseline_path
+from train_logic_node_aromatic import train_eval, get_best_baseline_path
 # from skopt import gp_minimize
 # from skopt.space import Real, Integer, Categorical
 # from skopt.utils import use_named_args
@@ -58,22 +58,9 @@ class CustomGridSearch:
         return self.results_
 
 
-
-# Define the search space for hyperparameters
-# params  = {
-#     'nogumbel': [False, True],
-#     'epochs': [3000],
-#     'lr': [0.001, 0.01, 0.1],
-#     'l2': [0, 0.001, 0.01, 0.1],
-#     'dropout': [0, 0.15, 0.3],
-#     'num_layers': [3],
-#     'hidden_dim': [16,32,64,128],
-#     'batch_size': [16,32,64],
-# }
-
 params  = {
     'epochs': [1000],
-    'warmup_epochs': [0,600],
+    'warmup_epochs': [0, 600],
     'batch_size': [32], 
     'lr': [0.001, 0.01],
     'l2': [0.0],
@@ -85,7 +72,6 @@ params  = {
 }
 
 
-
 def scoring_function(dataset_name, **params):
     baseline_path = get_best_baseline_path(dataset_name)
     score = train_eval(dataset_name, baseline_path, params)['val_acc_mean']
@@ -93,8 +79,8 @@ def scoring_function(dataset_name, **params):
 
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description='optimize_baseline.py')
-    parser.add_argument('--dataset',  default='Aromatic', type=str, help='Dataset to use')
+    parser = argparse.ArgumentParser(description='optimize_logic_node.py')
+    parser.add_argument('--dataset',  default='AromaticCarbon', type=str, help='Dataset to use')
     parser.add_argument('--n_jobs',  default=10, type=int, help='Number of jobs')
     args = parser.parse_args()
     dataset_name = args.dataset

@@ -11,7 +11,7 @@ import json
 from model import GIN, GINTELL
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 
-SEEDS = 1
+SEEDS = 5
 
 def get_best_baseline_path(dataset_name):
     l = glob.glob(f'results/{dataset_name}/*/results.json')

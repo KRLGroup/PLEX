@@ -76,10 +76,6 @@ def train_seed(dataset_name, args, seed, device):
     shutil.rmtree(path)
     path = create_folder(dataset_name, args, seed=seed)
 
-    os.mkdir(os.path.join(path, 'code'))
-    for f in glob.glob('*.py'):
-        shutil.copy(f, os.path.join(path, 'code'))
-
     with open(os.path.join(path, 'args.json'), 'w') as f:
         args = {k: (v.item() if hasattr(v, 'item') else v) for k,v in args.items()}
         json.dump(args, f)

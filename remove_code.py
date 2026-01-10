@@ -3,7 +3,7 @@ import shutil
 import os
 
 # Percorso base
-base_path = "/home/palu001/LogiX-Me/results/*/*/*/code"
+base_path = "results/*/*/*/code"
 
 # Trova tutte le cartelle corrispondenti
 dirs_to_delete = glob.glob(base_path)
