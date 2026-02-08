@@ -48,6 +48,8 @@ def train_epoch(model, model_tell, loader, device, optimizer, num_classes, train
             if data.x.isnan().any(): continue
             if data.y.isnan().any(): continue
             y = data.y.reshape(-1).to(device).long()
+
+
             optimizer.zero_grad()
             with torch.no_grad():
                 if data.edge_attr is None:

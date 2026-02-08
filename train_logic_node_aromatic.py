@@ -46,6 +46,9 @@ def train_epoch(model, model_tell, loader, device, optimizer, num_classes, train
     for batch in loader:
         batch = batch.to(device)
         y = batch.y
+        print("shape y in batch:", y.shape)
+        print("shape x in batch:", batch.x.shape)
+        print("shape edge_index in batch:", batch.edge_index.shape)
         
         optimizer.zero_grad()
         
