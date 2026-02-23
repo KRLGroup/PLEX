@@ -7,7 +7,7 @@ import json
 import os
 import pickle
 from torch_geometric.loader import DataLoader
-from train_logic import test_epoch
+from train_logic_node_aromatic import test_epoch
 
 def get_best_path(dataset_name):
     l = glob.glob(f'results_logic/{dataset_name}/*/*/results.json')
@@ -22,7 +22,7 @@ def get_best_path(dataset_name):
     fname = fname.replace('/results.json', '')
     return fname
 
-dataset_names = ['Mutagenicity', 'PROTEINS']
+dataset_names = ['AromaticCarbon']
 seeds = [0,1,2,3,4]
 
 device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')

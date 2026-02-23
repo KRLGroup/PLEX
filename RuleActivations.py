@@ -144,13 +144,13 @@ def count_rules_per_layer(all_rules_path, dataset_name, num_layers):
         records.append({
             'dataset': dataset_name,
             'layer': layer,
-            'sublayer': 'lambda_0',
+            'sublayer': 'lambda_E',
             'num_rules': layer_counts[layer]['nn_0']
         })
         records.append({
             'dataset': dataset_name,
             'layer': layer,
-            'sublayer': 'lambda_1',
+            'sublayer': 'lambda_N',
             'num_rules': layer_counts[layer]['nn_1']
         })
     
@@ -191,6 +191,7 @@ def create_combined_activation_histogram(all_dfs, save_path='combined_activation
         axes = axes.reshape(num_datasets * 2, 1)
     
     sublayer_names = ['nn_0', 'nn_1']
+    sublayer_labels = ['λ$_E$', 'λ$_N$']  # Labels per i plot
     
     for dataset_idx, (df, dataset_name, num_layers) in enumerate(all_dfs):
         for sublayer_idx, sublayer in enumerate(sublayer_names):
@@ -228,9 +229,9 @@ def create_combined_activation_histogram(all_dfs, save_path='combined_activation
                     # Nascondi gli assi per layer non presenti
                     ax.axis('off')
                 
-                # Label sublayer a sinistra
+                # Label sublayer a sinistra con nuova nomenclatura
                 if col_idx == 0:
-                    ax.text(-0.3, 0.5, f'λ{sublayer_idx}', 
+                    ax.text(-0.3, 0.5, sublayer_labels[sublayer_idx], 
                            transform=ax.transAxes, rotation=90, 
                            va='center', ha='center', fontsize=10, fontweight='bold')
                 
@@ -241,8 +242,6 @@ def create_combined_activation_histogram(all_dfs, save_path='combined_activation
                            transform=ax.transAxes,
                            va='bottom', ha='center', fontsize=12, fontweight='bold')
     
-    # Rimuovi il titolo generale (suptitle)
-    # plt.suptitle('Rule Activations - All Datasets', fontsize=14, fontweight='bold')
     plt.tight_layout()
     
     plt.savefig(save_path, dpi=300, bbox_inches='tight')
@@ -250,13 +249,14 @@ def create_combined_activation_histogram(all_dfs, save_path='combined_activation
     plt.close()
 
 
-def plot_combined_rule_counts(all_counts_dfs, save_path='combined_rule_counts.png'):
+def plot_combined_rule_counts(all_counts_dfs, literals, save_path='combined_rule_counts.png'):
     """
     Crea un grafico a barre del numero di regole per tutti i dataset.
     Layout: 5 dataset per riga.
     
     Args:
         all_counts_dfs: Lista di DataFrame con i conteggi
+        literals: Dictionary con i conteggi dei letterali per dataset
         save_path: Path dove salvare il plot
     """
     import matplotlib.pyplot as plt
@@ -270,7 +270,7 @@ def plot_combined_rule_counts(all_counts_dfs, save_path='combined_rule_counts.pn
     num_datasets = len(datasets)
     
     # Layout: 5 colonne per riga
-    ncols = 4
+    ncols = 5
     nrows = int(np.ceil(num_datasets / ncols))
     
     # Crea subplots
@@ -295,24 +295,39 @@ def plot_combined_rule_counts(all_counts_dfs, save_path='combined_rule_counts.pn
         
         # Prepara i dati
         layers = sorted(df_dataset['layer'].unique())
-        lambda_0_counts = df_dataset[df_dataset['sublayer'] == 'lambda_0'].sort_values('layer')['num_rules'].values
-        lambda_1_counts = df_dataset[df_dataset['sublayer'] == 'lambda_1'].sort_values('layer')['num_rules'].values
+        lambda_E_counts = df_dataset[df_dataset['sublayer'] == 'lambda_E'].sort_values('layer')['num_rules'].values
+        lambda_N_counts = df_dataset[df_dataset['sublayer'] == 'lambda_N'].sort_values('layer')['num_rules'].values
+        
+        # Prepara i dati dei letterali (LogiX-GIN)
+        literal_counts = []
+        if dataset_name in literals:
+            for layer in layers:
+                # I letterali usano layer 1-indexed (1, 2, 3...)
+                literal_counts.append(literals[dataset_name].get(layer + 1, 0))
+        else:
+            literal_counts = [0] * len(layers)
         
         # Posizioni delle barre
         x = np.arange(len(layers))
-        width = 0.35
+        width = 0.25  # Ridotto per fare spazio a 3 barre
         
-        # Barre affiancate
-        bars1 = ax.bar(x - width/2, lambda_0_counts, width, label='λ₀', alpha=0.8, edgecolor='black')
-        bars2 = ax.bar(x + width/2, lambda_1_counts, width, label='λ₁', alpha=0.8, edgecolor='black')
+        # Tre barre affiancate con colori personalizzati
+        bars1 = ax.bar(x - width, lambda_E_counts, width, label='λ$_E$', 
+                       color='#003063ff', alpha=0.8, edgecolor='black')
+        bars2 = ax.bar(x, lambda_N_counts, width, label='λ$_N$', 
+                       color='#89aceaff', alpha=0.8, edgecolor='black')
+        bars3 = ax.bar(x + width, literal_counts, width, label='LogiX-GIN', 
+                       color='#93000aff', alpha=0.8, edgecolor='black')
         
         # Labels e titolo
-        ax.set_xlabel('Layer', fontsize=10)
-        ax.set_ylabel('# Rules', fontsize=10)
-        ax.set_title(f'{dataset_name}', fontsize=11, fontweight='bold')
+        ax.set_xlabel('Layer', fontsize=21)
+        if idx % ncols == 0:
+            ax.set_ylabel('# Rules', fontsize=21)
+        ax.set_title(f'{dataset_name}', fontsize=20, fontweight='bold')
         ax.set_xticks(x)
         ax.set_xticklabels([f'{i+1}' for i in layers])
-        ax.legend(fontsize=8)
+        ax.tick_params(axis='both', which='major', labelsize=18)
+        ax.legend(fontsize=16)
         ax.grid(True, alpha=0.3, axis='y')
     
     # Nascondi gli assi inutilizzati
@@ -330,72 +345,96 @@ def plot_combined_rule_counts(all_counts_dfs, save_path='combined_rule_counts.pn
 # CONFIGURAZIONE DATASET
 # ============================================================================
 
+
+literals = {
+    'Ba2Motifs': {5: 1, 4: 1, 3: 3, 2: 9, 1: 17},
+    'BaMultiShapes': {5: 1, 4: 3, 3: 10, 2: 42, 1: 51},
+    'MUTAG': {1: 7, 2: 1},
+    'Mutagenicity': {2: 61, 3: 21, 4: 3, 1: 59},
+    'PROTEINS': {3: 5, 4: 1, 1: 9, 2: 22},
+    'NCI1': {5: 3, 4: 37, 3: 59, 2: 63, 1: 60},
+    'BBBP': {3: 18, 4: 1, 2: 43, 1: 49},
+    'TreeGrid': {5: 1, 4: 5, 3: 5, 2: 12, 1: 47},
+    'BaCommunity': {2: 14, 5: 1, 1: 40, 4: 7, 3: 11},
+    'BaShapes': {1: 1}
+}
+
 datasets_config = [
     {
         'name': 'Ba2Motifs',
-        'path': '/home/palu001/LogiX-Me/explanations/Ba2Motifs/0/classe_1/all_rules.pkl',
+        'path': '/home/simone/Desktop/LogiX-Me/explanations/Ba2Motifs/0/classe_1/all_rules.pkl',
         'num_layers': 3
     },
     {
         'name': 'BaCommunity',
-        'path': '/home/palu001/LogiX-Me/explanations/BaCommunity/0/classe_0/all_rules.pkl',
+        'path': '/home/simone/Desktop/LogiX-Me/explanations/BaCommunity/0/classe_0/all_rules.pkl',
         'num_layers': 5
     },
     {
         'name': 'BaMultiShapes',
-        'path': '/home/palu001/LogiX-Me/explanations/BaMultiShapes/0/classe_0/all_rules.pkl',
+        'path': '/home/simone/Desktop/LogiX-Me/explanations/BaMultiShapes/0/classe_0/all_rules.pkl',
         'num_layers': 3
     },
     {
         'name': 'BaShapes',
-        'path': '/home/palu001/LogiX-Me/explanations/BaShapes/0/classe_0/all_rules.pkl',
+        'path': '/home/simone/Desktop/LogiX-Me/explanations/BaShapes/0/classe_0/all_rules.pkl',
         'num_layers': 5
     },
-    # {
-    #     'name': 'BBBP',
-    #     'path': '/home/palu001/LogiX-Me/explanations/BBBP/0/classe_1/all_rules.pkl',
-    #     'num_layers': 5
-    # },
-    # {
-    #     'name': 'CiteSeer',
-    #     'path': '/home/palu001/LogiX-Me/explanations/CiteSeer/0/classe_0/all_rules.pkl',
-    #     'num_layers': 5
-    # },
-    # {
-    #     'name': 'Cora',
-    #     'path': '/home/palu001/LogiX-Me/explanations/Cora/0/classe_0/all_rules.pkl',
-    #     'num_layers': 5
-    # },
-    # {
-    #     'name': 'MUTAG',
-    #     'path': '/home/palu001/LogiX-Me/explanations/MUTAG/0/classe_1/all_rules.pkl',
-    #     'num_layers': 5
-    # },
-    # {
-    #     'name': 'Mutagenicity',
-    #     'path': '/home/palu001/LogiX-Me/explanations/Mutagenicity/0/classe_1/all_rules.pkl',
-    #     'num_layers': 3
-    # },
-    # {
-    #     'name': 'NCI1',
-    #     'path': '/home/palu001/LogiX-Me/explanations/NCI1/0/classe_1/all_rules.pkl',
-    #     'num_layers': 3
-    # },
-    # {
-    #     'name': 'PROTEINS',
-    #     'path': '/home/palu001/LogiX-Me/explanations/PROTEINS/0/classe_1/all_rules.pkl',
-    #     'num_layers': 5
-    # },
-    # {
-    #     'name': 'REDDIT-BINARY',
-    #     'path': '/home/palu001/LogiX-Me/explanations/REDDIT-BINARY/0/classe_1/all_rules.pkl',
-    #     'num_layers': 5
-    # },
-    # {
-    #     'name': 'TreeGrid',
-    #     'path': '/home/palu001/LogiX-Me/explanations/TreeGrid/0/classe_1/all_rules.pkl',
-    #     'num_layers': 5
-    # },
+    {
+        'name': 'BBBP',
+        'path': '/home/simone/Desktop/LogiX-Me/explanations/BBBP/0/classe_1/all_rules.pkl',
+        'num_layers': 5
+    },
+    {
+        'name': 'CiteSeer',
+        'path': '/home/simone/Desktop/LogiX-Me/explanations/CiteSeer/0/classe_0/all_rules.pkl',
+        'num_layers': 5
+    },
+    {
+        'name': 'Cora',
+        'path': '/home/simone/Desktop/LogiX-Me/explanations/Cora/0/classe_0/all_rules.pkl',
+        'num_layers': 5
+    },
+    {
+        'name': 'MUTAG',
+        'path': '/home/simone/Desktop/LogiX-Me/explanations/MUTAG/0/classe_1/all_rules.pkl',
+        'num_layers': 5
+    },
+    {
+        'name': 'Mutagenicity',
+        'path': '/home/simone/Desktop/LogiX-Me/explanations/Mutagenicity/0/classe_1/all_rules.pkl',
+        'num_layers': 3
+    },
+    {
+        'name': 'NCI1',
+        'path': '/home/simone/Desktop/LogiX-Me/explanations/NCI1/0/classe_1/all_rules.pkl',
+        'num_layers': 3
+    },
+    {
+        'name': 'PROTEINS',
+        'path': '/home/simone/Desktop/LogiX-Me/explanations/PROTEINS/0/classe_1/all_rules.pkl',
+        'num_layers': 5
+    },
+    {
+        'name': 'REDDIT-BINARY',
+        'path': '/home/simone/Desktop/LogiX-Me/explanations/REDDIT-BINARY/0/classe_1/all_rules.pkl',
+        'num_layers': 5
+    },
+    {
+        'name': 'TreeGrid',
+        'path': '/home/simone/Desktop/LogiX-Me/explanations/TreeGrid/0/classe_1/all_rules.pkl',
+        'num_layers': 5
+    },
+    {
+        'name': 'Aromatic-Cycle',
+        'path': '/home/simone/Desktop/LogiX-Me/explanations/Aromatic/0/classe_1/all_rules.pkl',
+        'num_layers': 5
+    },
+    {
+        'name': 'Aromatic-Carbon',
+        'path': '/home/simone/Desktop/LogiX-Me/explanations/AromaticCarbon/0/classe_1/all_rules.pkl',
+        'num_layers': 5
+    },
 ]
 
 # ============================================================================
@@ -431,7 +470,7 @@ create_combined_activation_histogram(all_activation_dfs,
                                      save_path='combined_activation_histogram.png')
 
 # Grafico conteggio regole combinato
-plot_combined_rule_counts(all_count_dfs, 
+plot_combined_rule_counts(all_count_dfs, literals,
                           save_path='combined_rule_counts.png')
 
 # Salva anche CSV combinati
