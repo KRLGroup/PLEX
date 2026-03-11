@@ -24,8 +24,12 @@ A self-explainable Graph Neural Network architecture that uses **Polyadic Graded
 ### Hyperparameter Optimization
 | File | Description |
 |------|-------------|
-| `optimize_baseline.py` | Hyperparameter search for teacher models |
-| `optimize_logic.py` | Hyperparameter search for PLEX |
+| `optimize_baseline.py` | Hyperparameter search for teacher models on **graph classification**|
+| `optimize_baseline_node.py` | Hyperparameter search for teacher models on **node classification**|
+| `optimize_baseline_link.py` | Hyperparameter search for teacher models on **link prediction**|
+| `optimize_logic.py` | Hyperparameter search for PLEX on **graph classififcation**|
+| `optimize_logic_node.py` | Hyperparameter search for PLEX on **node classification**|
+| `optimize_logic_link.py` | Hyperparameter search for PLEX on **link prediction**|
 
 ### Explainability & Analysis
 | File | Description |
@@ -35,3 +39,5 @@ A self-explainable Graph Neural Network architecture that uses **Polyadic Graded
 | `LayerWiseRules(LP).ipynb` | Extract logic rules (link prediction) |
 | `RuleActivations.py` | Visualize rule activations |
 | `HoyerRuleStatistics.py` | Hoyer sparsity statistics and plots |
+
+For the dataset Aromatic-Carbon there are different files for training, optimization and explainability.

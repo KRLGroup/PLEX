@@ -255,8 +255,8 @@ if __name__ == '__main__':
 
     parser = argparse.ArgumentParser(description='train_baseline.py')
 
-    parser.add_argument('--dataset',       default='AromaticCarbon', type=str,     help='Dataset to use')
-    parser.add_argument('--epochs',        default=1000,       type=int,     help='Epochs')
+    parser.add_argument('--dataset',       default='BaShapes', type=str,     help='Dataset to use')
+    parser.add_argument('--epochs',        default=3000,       type=int,     help='Epochs')
     parser.add_argument('--hidden_dim',    default=32,        type=int,     help='Hid Dim')
     parser.add_argument('--batch_size',    default=32,         type=int,     help='Batch Size')
     parser.add_argument('--num_layers',    default=5,          type=int,     help='Number of Convolutional Layers')
