@@ -1,5 +1,7 @@
 # PLEX
 
+Official Paper: https://doi.org/10.1007/978-3-032-37664-0_28
+
 A self-explainable Graph Neural Network architecture that uses **Polyadic Graded Modal Logic (PGML)** to support edge-aware reasoning via ternary predicates R(x, y, e). Supports graph classification, node classification, and link prediction tasks.
 
 ## Repository Structure
